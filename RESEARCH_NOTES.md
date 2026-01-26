@@ -1,27 +1,26 @@
-# Research notes and open questions
+# Research notes
 
-This document summarizes the current conceptual position of the SGTA project,
-as well as open research directions that are not yet resolved.
-It is intended for research discussion rather than for benchmarking or release.
+This document summarizes the current conceptual position of the SGTA project
+and records open questions that arise from the existing results.
+It is intended for research discussion rather than benchmarking or release.
 
 ## Conceptual framing
 
-SGTA treats internal representations of a Transformer as points on a low-dimensional
-unit sphere, where semantic information is encoded primarily through direction.
-Concepts are modeled as regions in this space, characterized by a center direction
-and an angular radius.
+SGTA treats internal representations of a Transformer as points on a
+low-dimensional unit sphere, where semantic information is encoded
+primarily through direction.
 
-The memory layer maintains a finite set of such regions and updates them dynamically
-based on model activity during training.
-This allows concepts to sharpen, drift, or dissolve over time.
+Concepts are modeled as regions in this space, characterized by a center
+direction and an angular radius.
+A finite set of such regions constitutes a synalytic memory.
 
-A key assumption of the project is that introducing an explicit geometric structure
-at the level of representations can affect learning dynamics without modifying
-the base architecture.
+The memory layer evolves during training and interacts with the model
+through representation-dependent biasing, without modifying the base
+architecture.
 
 ## Memory dynamics
 
-Concept regions evolve according to simple update rules.
+Concept regions evolve according to explicit update rules.
 
 Repeated activation leads to increased concentration of a concept.
 Lack of activation leads to gradual expansion.
@@ -45,8 +44,6 @@ to study structural changes induced by the synalytic bias.
 
 ## Open research questions
 
-Several directions remain open and are of primary interest.
-
 - Under what conditions do the memory dynamics admit stable partitions
   of representation space into multiple concepts?
 
@@ -56,20 +53,10 @@ Several directions remain open and are of primary interest.
 - Can changes in graph spectral properties be linked to known notions
   of generalization or robustness?
 
-- Is there a regime in which the synalytic bias provably improves
-  calibration or stability across random initializations?
+- Is there a regime in which the synalytic bias improves calibration
+  or stability across random initializations?
 
 - How does the effect scale with model capacity and dataset complexity?
-
-## Relation to theory
-
-The project is informed by kinetic models of memory formation
-and results on critical dimensionality in concept organization.
-At present, these connections are primarily qualitative.
-
-One long-term goal is to formalize the observed dynamics
-in terms of simplified analytical models that capture
-the interaction between optimization, geometry, and memory updates.
 
 ## Status
 
