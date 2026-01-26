@@ -77,6 +77,7 @@ All results should be interpreted as exploratory and diagnostic.
 - RESEARCH_NOTES.md — conceptual framing and open research questions
 - THEORY_OVERVIEW.md — overview of the formal theoretical framework
 - DIRECTION.md — directions for theoretical and empirical collaboration
+- QUESTIONS.md — core open research questions and discussion entry points
 - figures/ — plots and diagnostics referenced in the analysis
 
 ## Reproducibility and status
