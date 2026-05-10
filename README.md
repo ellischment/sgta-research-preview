@@ -131,7 +131,7 @@ All results should be interpreted as exploratory and diagnostic.
 ## Repository structure
 
 - README.md — project overview and experimental findings
-- SGTA_first.ipynb — full experimental pipeline
+- SGTA_pipeline.ipynb — full experimental pipeline
 - RESEARCH_NOTES.md — conceptual framing and open research questions
 - THEORY_OVERVIEW.md — overview of the formal theoretical framework
 - DIRECTION.md — directions for theoretical and empirical collaboration
