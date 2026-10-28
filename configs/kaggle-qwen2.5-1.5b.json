@@ -1,0 +1,32 @@
+{
+  "_comment": "Free rehearsal on a Kaggle T4 (16 GB, no bf16): same data and quotas as qwen2.5-1.5b.json, float16. Results count as a dress rehearsal of the code, the paper run uses bf16.",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "run_dir": "runs/qwen2.5-1.5b-kaggle",
+  "dtype": "float16",
+  "data": {
+    "datasets": {
+      "triviaqa": 3000,
+      "popqa": 3000,
+      "nq_open": 1500
+    }
+  },
+  "gen": {
+    "batch_size": 64,
+    "n_samples": 5
+  },
+  "fit": {
+    "ks": [
+      8,
+      16,
+      32,
+      64
+    ]
+  },
+  "perturb": {
+    "n_examples": 3000,
+    "batch_size": 66,
+    "n_intervene": 800,
+    "intervene_k": 16,
+    "grad_batch_size": 32
+  }
+}

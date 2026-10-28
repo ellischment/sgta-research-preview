@@ -1,0 +1,12 @@
+# GPU stages
+# torch is installed by scripts/setup_server.sh to match the GPU driver (tested: torch 2.14)
+transformers>=4.48,<6   # tested: 5.19
+accelerate>=0.33
+datasets>=2.20
+# analysis (CPU)
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.4
+pandas>=2.1
+matplotlib>=3.8
+pytest>=8

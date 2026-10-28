@@ -1,0 +1,3 @@
+# dev only
+ruff>=0.5
+vulture>=2.11

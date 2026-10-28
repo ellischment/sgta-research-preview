@@ -1,0 +1,14 @@
+{
+  "_comment": "What `python -m sgta.cli watch` shows. Remove a name from a list to hide it; restart watch to apply.",
+  "refresh_seconds": 10,
+  "sections": ["header", "gpu", "models", "warnings"],
+  "_sections_available": ["header", "gpu", "models", "warnings", "log"],
+  "model_fields": ["stage", "bar", "eta", "accuracy", "classes", "checks", "verdicts"],
+  "_model_fields_available": ["stage", "bar", "eta", "accuracy", "classes", "checks", "verdicts"],
+  "warnings_max": 6,
+  "log_tail_lines": 0,
+  "bar_width": 18,
+  "stall_minutes": 20,
+  "price_per_hour": 1.79,
+  "currency": "$"
+}

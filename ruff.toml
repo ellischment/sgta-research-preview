@@ -1,0 +1,10 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["F", "E", "W", "B", "UP", "SIM", "C4"]
+# `l` is the layer index everywhere in this code base; E731 lambdas are the model factories the probes take.
+ignore = ["E741", "E731"]
+
+[lint.per-file-ignores]
+"tests/*" = ["B011"]

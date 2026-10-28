@@ -1,0 +1,32 @@
+{
+  "_comment": "Fast model. Runs first: if H0 fails here, stop and rethink before spending GPU on 7B.",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "run_dir": "runs/qwen2.5-1.5b",
+  "dtype": "bfloat16",
+  "data": {
+    "datasets": {
+      "triviaqa": 3000,
+      "popqa": 3000,
+      "nq_open": 1500
+    }
+  },
+  "gen": {
+    "batch_size": 64,
+    "n_samples": 5
+  },
+  "fit": {
+    "ks": [
+      8,
+      16,
+      32,
+      64
+    ]
+  },
+  "perturb": {
+    "n_examples": 3000,
+    "batch_size": 66,
+    "n_intervene": 800,
+    "intervene_k": 16,
+    "grad_batch_size": 32
+  }
+}

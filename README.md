@@ -1,153 +1,219 @@
-> **Это ранний прототип (май 2026), он больше не отражает текущую работу.**
-> Сейчас SGTA — пост-хок диагностика уверенных ошибок LLM: проверяю, как быстро решение модели переворачивается при малых возмущениях residual stream. Протокол и код выложу отдельным репозиторием в ноябре 2026.
+# SGTA: устойчивость скрытого состояния и уверенные ошибки LLM
 
-# SGTA — Synalytic Graph Transformer Augmentation
-Research preview
+**In English.** Pre-registered study of whether the *stability* of an LLM's hidden state separates confident errors from confident correct answers, where hidden-state *geometry* cannot (Cheang et al., Findings ACL 2026). Confident errors (wrong and consistent across samples) are compared with correct answers of the same consistency; the new measure is the response of the next-token decision to small norm-preserving rotations of the residual stream at six depths, and the cheapest rotation along the margin gradient that flips the decision. It must add to output confidence, sample consistency, per-layer linear probes, a TriLens-style logit-lens score and the output margin. Hypotheses, thresholds and kill rules are fixed in [HYPOTHESES.md](HYPOTHESES.md) before any real data; its SHA-256 is pinned in `HYPOTHESES.sha256` and was sent to the supervisor before the first run. Everything is calibrated on synthetic runs with planted, absent and selection-confounded effects (`pytest tests/`). Status: protocol v1.5.1 frozen, first real runs in November 2026. The May 2026 prototype (an architectural inductive bias for fine-tuning) lives in [old/](old/) and is summarised below. The rest of this README is in Russian.
 
-SGTA is a geometric inductive bias for Transformer fine-tuning.
-It introduces a small non-parametric synalytic memory that influences attention
-and output logits based on the angular proximity of internal representations.
-The approach does not modify the Transformer architecture and does not introduce
-additional trainable parameters.
+## Как проект пришёл к нынешней постановке
 
-This repository presents a mechanistic research preview.
-It is not intended as a benchmark submission or a claim of systematic
-performance improvement.
+Это третья постановка SGTA. Первые две лежат в [old/](old/) как есть, с кодом и заметками мая 2026 года.
 
-## Motivation
+| Версия | Что утверждалось | Что подтвердилось | Что нет | Что осталось в проекте |
+|---|---|---|---|---|
+| 1. Архитектура, май 2026 ([old/](old/)) | непараметрическая «синалитическая память» из сферических областей смещает attention и логиты при дообучении; это улучшает динамику обучения, калибровку и устойчивость к инициализации | на SST-2 с BERT-base память меняла спектральные свойства графа внимания; на DistilBERT был намёк на выигрыш в пиковой точности и устойчивости к seed | прирост точности на BERT-base неотличим от базовой линии; эффект на DistilBERT не воспроизведён на нужном числе seed и масштабов; главное, убедительная проверка новой архитектуры требует обучения на масштабе, которого у проекта нет | сферические области как разбиение слоя, граф над ними, идея, что информация об ошибке живёт в направлении, а не в норме (теперь гипотезы H2, H4, H7) |
+| 2. Концептные трейсы, сентябрь 2026 | путь скрытого состояния по концептным областям сохраняет сигнал об ошибке при сжатии на два порядка и добавляет к уверенности модели | до эксперимента не дошло: за 2025–2026 годы это показали GHOST (ACL 2026), ICR Probe (ACL 2025), LSD и Hallucination Basins | как главное утверждение занято; и на уверенных ошибках геометрия состояний почти слепа (Cheang et al., Findings ACL 2026) | точечные пробы и траектории стали базовой линией, которую новая мера обязана превзойти |
+| 3. Устойчивость, октябрь 2026 (этот репозиторий) | уверенные ошибки занимают то же место, что и верные ответы, но сидят в бассейнах другой глубины: малый сдвиг состояния переворачивает их иначе | проверяется; результаты в ноябре 2026 | | всё |
 
-In standard Transformer models, attention structure and semantic organization
-emerge implicitly through optimization.
-While this is sufficient for strong empirical performance,
-it makes learning dynamics difficult to analyze and control.
+Ни одна из прежних версий не была опровергнута экспериментом на уровне, достаточном для статьи. Первая закрыта из-за слабого эффекта и стоимости проверки, вторая потому, что её заняли чужие работы. Нынешняя бьёт в место, которое эти работы оставили открытым, и спроектирована так, чтобы отрицательный результат тоже был результатом: при строгом контроле он разрешает спор между Liew и соавторами (2026) и Okutomi (2026).
 
-SGTA explores whether introducing an explicit geometric structure
-can influence internal representation organization during fine-tuning,
-without altering the base architecture.
+## Что нового в третьей постановке
 
-The focus of this work is on understanding how a controlled inductive bias
-affects learning dynamics, stability across random initializations,
-calibration behavior, and the structure of attention-induced interaction graphs.
+- Главный вопрос один: добавляет ли устойчивость скрытого состояния что-то к уже известным признакам, когда нужно отличить уверенную ошибку от так же уверенного верного ответа.
+- Контроль по отбору: уверенные ошибки (неверно и согласованно в сэмплах) сравниваются только с верными ответами той же согласованности. Без этого любая мера устойчивости выигрывала бы за счёт определения классов; на синтетике это даёт ложные +0.20 AUROC.
+- Сильная база: уверенность, согласованность, пробы по слоям, TriLens-подобный скор, выходной маржин, всё через сплайны, чтобы нелинейная связь с уверенностью не выдавалась за прирост.
+- Протокол с порогами и правилами опровержения зафиксирован до данных, хэш отправлен руководителю; любая правка порога после данных записывается с причиной.
+- Калибровка: на синтетике с заложенными эффектами гипотезы выживают, на пустых данных и на данных с перекосом отбора нет; статистика проверена на симуляциях с известной правдой.
 
-## Conceptual framework
+---
 
-Internal representations of a Transformer are treated as points on a
-low-dimensional unit sphere, where semantic information is encoded
-primarily through direction rather than magnitude.
+# SGTA-lab: турнир гипотез о динамике ошибок LLM
 
-Concepts are modeled as spherical caps — regions on the sphere characterized
-by a center direction and an angular radius.
-A finite set of such regions constitutes a synalytic memory that evolves
-during training.
 
-The memory interacts with the model through representation-dependent biasing.
-Three bias modes are supported:
-- **logit bias** — applied at the classifier output,
-- **attention bias** — applied before self-attention,
-- **dual** — both simultaneously.
+Репозиторий для одного спринта на арендованном GPU. За 1–2 дня он проверяет девять заранее зарегистрированных гипотез на трёх моделях (плюс контрольный прогон базовой модели без instruct-тюнинга) и выдаёт по каждой вердикт: SURVIVES, KILLED или INCONCLUSIVE. С этими вердиктами идём к научному руководителю.
 
-Centers adapt to the stream of hidden states via stochastic approximation,
-with explicit update rules for both centers and radii.
-Overlap between concepts is penalized to maintain interpretability.
-A weighted graph is constructed over concepts, with edges reflecting
-geometric proximity and empirical co-activation.
-Spectral properties of this graph (e.g., algebraic connectivity λ₂)
-serve as diagnostic signals during training.
+Что проверяем и почему именно это, подробно в [HYPOTHESES.md](HYPOTHESES.md). Коротко: геометрия скрытых состояний уже не новость, и на уверенных ошибках она слепа (Cheang et al., Findings ACL 2026). Мы проверяем, видит ли эти ошибки **динамика**: глубина бассейна (типичный толчок и самый дешёвый толчок по градиенту), марковская структура глубины против простой инерции, точка невозврата, синергия между слоями. Бить надо не только уверенность модели, но и TriLens-подобный скор по энтропиям logit lens: он входит в базу каждого сравнения.
 
-A formal mathematical treatment of the model —
-including the variational justification of spherical concept shape,
-convergence proofs for center dynamics, and graph construction —
-is available in the accompanying draft paper (in preparation, contact for details).
+## Что арендовать
 
-## Experimental setup
+| Ресурс | Нужно |
+|---|---|
+| GPU | 1× A100 80 GB; при бюджете $20 RTX A6000 48 GB (раздел «Бюджет $20» ниже) |
+| CPU | 16 vCPU (анализ идёт на CPU параллельно с GPU) |
+| RAM | 64 GB |
+| Диск | 160–200 GB |
 
-Experiments are conducted under a strictly controlled protocol.
+Основной вариант: **RunPod**, A100 80 GB SXM, около $1.8 в час, посекундная оплата, шаблон RunPod PyTorch (torch с CUDA уже внутри). Запасной: Vast.ai с хостом из проверенного дата-центра. Перед регистрацией прочитай у провайдера раздел о санкциях и странах; VPN, чтобы скрыть страну, не используй: аккаунт могут заблокировать посреди ночи вместе с диском.
 
-- Task: SST-2 (GLUE)
-- Models: BERT-base, DistilBERT
-- Evaluation: five random seeds
-- Training: identical protocol for baseline and SGTA
-- Architecture: unchanged, no additional trainable parameters
+Ориентир по времени на H100 (на A100 примерно в 1.6 раза дольше; после первой готовой стадии монитор пересчитает оставшееся время по реальной скорости):
 
-Evaluation includes validation accuracy, steps to reach a fixed target accuracy,
-calibration error, and spectral diagnostics of attention-induced graphs.
+| Стадия | Qwen 1.5B | Qwen 7B | OLMo-2 7B | Qwen 7B base |
+|---|---|---|---|---|
+| extract (GPU) | ~10–15 мин | ~30–45 мин | ~30–45 мин | ~30–45 мин |
+| fit (CPU) | ~5 мин | ~15 мин | ~15 мин | ~15 мин |
+| perturb (GPU, 3000 примеров) | ~16 мин | ~40–70 мин | ~40–70 мин | ~40–70 мин |
+| analyze (CPU, фоном) | ~15 мин | ~30–45 мин | ~30–45 мин | ~30–45 мин |
 
-## Experimental pipeline
+Итого 7–9 часов на H100 или 11–14 часов на A100, то есть ночь и утро. Бюджет на A100: около $25, с запасом $35. Если нужно быстрее, H100 сокращает время примерно в 1.6 раза при сопоставимой цене за весь прогон.
 
-A complete experimental pipeline is implemented in `SGTA_first.ipynb`
-and organized around nine diagnostic maps:
+## Бюджет $20: бесплатная репетиция плюс дешёвая GPU
 
-1. **Geometry** — sphere validity, comparison with GMM and PCA baselines
-2. **Dynamics** — birth/death/drift of concepts, overlap, NDC over training
-3. **Functional** — comparison of all bias modes (none, logit, attn, dual)
-4. **Graph** — structure and spectral properties of the concept graph
-5. **Stability** — concept alignment across random seeds (Hungarian matching)
-6. **OOD** — distance-to-concept as error predictor (ROC-AUC)
-7. **Ablation** — component-wise comparison of bias modes
-8. **Worst-seed** — diagnostic on the hardest random initialization
-9. **Attribute alignment** — plug-in for external concept labels (CUB/VAW)
+План из двух частей. Сначала код впервые встречает настоящую модель бесплатно, потом деньги уходят только на 7B-модели.
 
-The pipeline is configurable via dataclass-based configuration objects
-covering dataset, training, concept memory, and experiment settings.
+**Часть 1, бесплатно: Kaggle.** Kaggle даёт около 30 GPU-часов в неделю на T4 (16 GB), сессия до 12 часов, работает и при закрытом браузере («Save & Run All»). T4 не умеет bf16, поэтому для неё есть конфиг `configs/kaggle-qwen2.5-1.5b.json` (float16; код сам выбирает тип по GPU и для preflight). Это репетиция: preflight, аудит разметки, H0 и все стадии на Qwen 1.5B, ноль рублей. Если fp16 даст NaN в состояниях (монитор и лог предупредят), это не провал метода, а ограничение T4: переносим 1.5B на платную часть.
 
-## Summary of observations
+В ноутбуке Kaggle (Settings: GPU T4 x2 или P100, Internet on; код загрузить как Dataset или `git clone`):
 
-For BERT-base, SGTA follows a learning trajectory comparable to the baseline.
-Mean validation accuracy and variance largely overlap.
-SGTA does not accelerate convergence and is not a speed optimization method.
+```
+!cp -r /kaggle/input/sgta-lab /kaggle/working/ && cd /kaggle/working/sgta-lab && bash scripts/kaggle_setup.sh
+!cd /kaggle/working/sgta-lab && bash scripts/run_sprint.sh configs/kaggle-qwen2.5-1.5b.json
+!cd /kaggle/working/sgta-lab && python -m sgta.cli watch --once
+```
 
-Despite similar external performance metrics, SGTA consistently alters the
-structure of attention-induced interaction graphs, as reflected by changes
-in spectral properties.
+Ориентир на T4: extract 1.5–2 ч, perturb около 2 ч, анализ на CPU около часа. Итог `runs/qwen2.5-1.5b-kaggle/results/` скачать из Output ноутбука.
 
-In capacity-limited models such as DistilBERT, SGTA exhibits a clearer effect,
-including higher peak accuracy, faster stabilization of learning dynamics,
-and reduced sensitivity to initialization.
+**Часть 2, платно: 7B-модели на RTX A6000 48 GB.** На RunPod A6000 стоит $0.59 в час против $1.79 за A100. Она примерно вдвое медленнее, но 48 GB хватает для 7B с запасом. Оценка (время на A6000 считаем как удвоенное время A100):
 
-## Current status (May 2026)
+| Что | Часы | Доллары |
+|---|---|---|
+| setup и preflight | 0.7 | 0.4 |
+| Qwen2.5-7B-Instruct | 5–6 | 3.5 |
+| OLMo-2 7B Instruct | 5–6 | 3.5 |
+| Qwen2.5-7B base (контроль) | 5–6 | 3.5 |
+| Qwen 1.5B в bf16 для единообразия (если репетиция прошла) | 1.5 | 0.9 |
+| диск 100 GB на сутки | | 0.3 |
+| **итого** | **18–20** | **12–13** |
 
-The notebook contains a functional implementation of all
-components described above. It has been tested on a minimal setup
-(small synthetic SST-2 subset, BERT-base-uncased, single seed, 1 epoch)
-and produces expected outputs.
+Запас до $20 около $7, это примерно 12 часов на случай, если A6000 окажется медленнее оценки. Если денег не хватает, базовая Qwen 7B идёт последней и её можно не запускать: для главного вопроса нужны только две instruct-модели разных семейств. Две ночи вместо одной: под можно остановить утром (Stop, не Terminate) и продолжить вечером, готовые стадии пропускаются.
 
-The code has not yet been systematically verified across
-all configurations and model scales. Several parts are noted
-as smoke tests (checkpointing disabled, minimal data) and require
-validation before full release.
+Вариант без оплаты вообще: у Modal есть $30 бесплатных кредитов в месяц, но под него спринт нужно переписать и пройти проверку карты. Оставлен как запасной.
 
-Extended experiments, cleaner package structure, and full public release
-are planned following peer review.
+## Порядок запуска (RunPod)
 
-A draft paper describing the mathematical framework
-is available for private discussion upon request.
+1. Пополнить баланс, добавить свой SSH-ключ в настройках.
+2. Deploy Pod: A100 SXM 80GB или RTX A6000, шаблон RunPod PyTorch, **Volume Disk 100–200 GB** (папка `/workspace`, она переживает остановку пода), включить SSH.
+3. Залить репозиторий в `/workspace` и подготовить сервер:
 
-## Limitations and scope
+```bash
+scp -r sgta-lab root@<pod>:/workspace/      # или git clone в /workspace
+ssh root@<pod>
+cd /workspace/sgta-lab
+bash scripts/setup_server.sh                 # 20–40 мин: окружение, все веса и датасеты в кэш, CPU-тесты
+```
 
-This work does not claim state-of-the-art performance,
-systematic accuracy gains, convergence acceleration,
-causal guarantees from spectral diagnostics,
-or validation across diverse tasks or domains.
+4. Запустить спринт и монитор в двух окнах tmux:
 
-All results should be interpreted as exploratory and diagnostic.
+```bash
+tmux new -s sprint
+bash scripts/run_sprint.sh                   # весь спринт; можно уходить
+# Ctrl-b c  -> второе окно:
+python -m sgta.cli watch                     # монитор; Ctrl-b 0 / Ctrl-b 1 переключают окна
+# отключиться от всего: Ctrl-b d ; вернуться: tmux attach -t sprint
+```
 
-## Repository structure
+5. Утром: скачать `runs/` и `results_bundle.tar.gz` к себе (`scp -r root@<pod>:/workspace/sgta-lab/runs .`), затем **Terminate** пода.
 
-- README.md — project overview and experimental findings
-- SGTA_pipeline.ipynb — full experimental pipeline
-- RESEARCH_NOTES.md — conceptual framing and open research questions
-- THEORY_OVERVIEW.md — overview of the formal theoretical framework
-- DIRECTION.md — directions for theoretical and empirical collaboration
-- QUESTIONS.md — core open research questions and discussion entry points
-- figures/ — plots and diagnostics referenced in the analysis
+## Ночной режим
 
-## Reproducibility and status
+Спринт рассчитан на то, что ты спишь.
 
-The repository contains experiment configurations, training histories,
-result summaries, and all figures shown in this preview.
+- **Preflight первым.** 8 проверок хуков и мини-спринт на Qwen 0.5B, около 2 минут. Не прошёл: ничего не запускается, деньги не тратятся. Прошёл: отметка `logs/preflight.ok`, при перезапуске он не повторяется.
+- **Сбой одной модели не останавливает ночь.** Упавшая стадия записывается, её лог хранится в `logs/<стадия>_<модель>.log`, и спринт переходит к следующей модели.
+- **Перезапуск безопасен.** Готовые стадии оставляют метку `runs/<модель>/.done_<стадия>` и пропускаются. После падения сервера или исправления ошибки просто запусти `bash scripts/run_sprint.sh` ещё раз.
+- **Без сети.** Всё скачано в `setup_server.sh`, ночью скрипт работает офлайн, и зависший запрос не может остановить стадию.
+- **Сравнение с EPGS.** Когда все GPU-стадии готовы, для каждой модели считается метод Liew и соавторов (2026) на тех же примерах, несколько минут на модель. В вердикты не входит; если упадёт, придёт сообщение, остальное не пострадает. Отключается флагом `--no-epgs`.
+- **В конце** считается H6 по instruct-моделям, таблицы сравнения с EPGS, и собирается маленький архив `results_bundle.tar.gz`: отчёты, вердикты, рисунки, `meta.csv`, логи. Полные состояния (около 6 GB) остаются в `runs/`.
 
-Full training code and extended experiments are not released at this stage
-to avoid premature or fragmentary reuse prior to peer-reviewed publication.
+**Монитор** (`python -m sgta.cli watch`) показывает: время, сколько уже потрачено, сколько примерно осталось до конца; загрузку GPU и свободный диск; по каждой модели стадию, полосу прогресса, оставшееся время, точность, число FA/CW/UW, контрольные числа стадии и вердикты; предупреждения (упавшая стадия, нет прогресса больше 20 минут, эффект пола, мало CW, обрезанные ответы). Что показывать, задаётся в `configs/monitor.json`: убери название секции или поля из списка, и его не станет. Там же цена часа для строки «потрачено». Разовый снимок экрана: `python -m sgta.cli watch --once`. «ВСЁ ГОТОВО» появляется только когда спринт действительно закончил; пока идут сводка и сравнение, монитор пишет «доделываю сводку и сравнение, сервер не выключай».
 
-Status: research preview.
-A full paper and code release are in preparation.
+**Telegram (по желанию, 2 минуты настройки).** Создай бота у @BotFather, напиши ему любое сообщение, открой `https://api.telegram.org/bot<TOKEN>/getUpdates` и возьми оттуда `chat.id`. Перед запуском:
+
+```bash
+export TG_BOT_TOKEN=...  TG_CHAT_ID=...
+bash scripts/run_sprint.sh --heartbeat-min 120    # сводка каждые 2 часа; без флага только события
+```
+
+Приходят: preflight прошёл или нет, падения стадий с последними строками лога, готовый анализ каждой модели с вердиктами, финальная сводка и файл `results_bundle.tar.gz`.
+
+**Остановка пода в конце (`--stop-when-done`).** Под останавливается, GPU перестаёт тарифицироваться, `/workspace` сохраняется. Включай, только если `setup_server.sh` написал «runpodctl found» и репозиторий лежит в `/workspace`. Остановленный под может не получить GPU обратно, если её уже занял кто-то другой; тогда под запускается без GPU (режим zero GPU у RunPod), и данные можно скачать. Если не уверена, не включай: каждый лишний час простоя стоит около $1.8.
+
+**Как лучше провести вечер.** Запусти спринт и посиди первый час: setup, preflight и Qwen 1.5B. Когда появится `runs/qwen2.5-1.5b/results/REPORT.md`, открой рядом `runs/qwen2.5-1.5b/results/audit.md`, сделай аудит разметки и проверь H0 (правило ниже). Всё в порядке: ложись спать, остальное спринт сделает сам.
+
+Стадии можно запускать и по отдельности:
+
+```bash
+python -m sgta.cli preflight --model Qwen/Qwen2.5-0.5B-Instruct
+python -m sgta.cli extract  --config configs/qwen2.5-1.5b.json
+python -m sgta.cli fit      --config configs/qwen2.5-1.5b.json
+python -m sgta.cli perturb  --config configs/qwen2.5-1.5b.json
+python -m sgta.cli analyze  --run runs/qwen2.5-1.5b
+python -m sgta.cli universality --runs runs/qwen2.5-1.5b runs/qwen2.5-7b runs/olmo2-7b --out runs/H6_universality.md
+```
+
+## Правило первого часа
+
+Сначала досчитайте Qwen 1.5B целиком. До чтения вердиктов проверьте разметку: 60 случайных строк, по 20 из FA, CW и UW. Анализ сам собирает их в `runs/qwen2.5-1.5b/results/audit.md` (вручную: `python -m sgta.cli audit --run runs/qwen2.5-1.5b`); в последней колонке отметьте «ок» или «ошибка». В CW ищите верные ответы, записанные иначе, чем алиасы. Больше 3 ошибок в CW или больше 6 всего: стоп, чините сопоставление ответов (правило из HYPOTHESES.md). Затем откройте `runs/qwen2.5-1.5b/results/REPORT.md`.
+
+- **H0 KILLED по первому критерию** (внутренние состояния не лучше уверенности): остановите спринт (в tmux `Ctrl-b 0`, затем `Ctrl-c`; позже `bash scripts/run_sprint.sh` продолжит с готовых стадий, прерванная начнётся заново). Проблема в постановке или в разметке правильности. Проверьте `meta.csv` глазами: правильно ли считается ответ верным.
+- **H0 прошёл, но трудный режим не воспроизвёлся** (CW так же виден, как UW): продолжайте, но H1 читается как «все ошибки», а не «ассоциированные галлюцинации».
+- **H0 SURVIVES**: продолжайте на 7B-моделях.
+- **Эффект пола в H1**: если в метриках H1 `mean_flip_rate_by_direction.random` около нуля у всех, случайные толчки не задевают решение. Это не повод останавливаться: смотрите `structured`, `probe` и H1b, они для этого и добавлены.
+
+## Что смотреть в результатах
+
+`runs/<модель>/results/REPORT.md` содержит таблицу сырых вердиктов, раздел «Decision rules applied» (итог центральной ставки по строгому правилу и KILLED, которые из-за малой выборки читаются как INCONCLUSIVE), критерии с числами, пять рисунков (решаемость против содержания по глубине, профиль глубины бассейна по классам ответов, самый дешёвый угол переворота по классам, цепь против инерции по горизонту, кривая марковости по K) и полный JSON метрик. `runs/H6_universality.md` показывает, какие вердикты повторились на всех моделях. `runs/<модель>/results/epgs_comparison.md` сравнивает H1 и H1b с методом Liew и соавторов на тех же примерах; это дополнительный анализ, вердиктов он не меняет.
+
+Главное сравнение везде CW против согласованных верных ответов (FAc): обе группы стабильны по построению. Строки `cw_all` (CW против всех верных) справочные, выводов по ним не делаем. Находкой считается только то, что выжило **минимум на двух моделях разных семейств**. Остальное остаётся сигналом для следующего запуска. Базовую 7B сравнивайте с instruct-7B по H1 и H1b вручную: разница между ними сама по себе результат про instruct-тюнинг.
+
+## Что везти научному руководителю
+
+1. Таблицу вердиктов по трём моделям (из H6).
+2. Для каждой выжившей гипотезы: одно утверждение, одно число с доверительным интервалом, один рисунок.
+3. Честный список убитых гипотез. Отрицательные результаты с полным набором контролей показывают, что мы проверяли, а не подгоняли.
+4. Калибровку на синтетике (`pytest tests/test_calibration.py`): метод находит заложенное и не находит отсутствующее.
+
+## Структура
+
+```
+sgta/
+  config.py       конфиг спринта (JSON)
+  data.py         TriviaQA, PopQA, NQ-open; промпты; правильность; согласованность
+  model_io.py     загрузка модели, хуки residual stream и выходов attention / MLP, logit lens, градиент маржина
+  extract.py      стадия 1 (GPU): ответы, сэмплы, состояния всех слоёв, logit lens трёх потоков
+  fit.py          стадия 2 (CPU): стандартизация, разбиения caps / euclid / random по слоям
+  perturb.py      стадия 3 (GPU): профили бассейна, градиентные маржины, интервенции с горизонтом 3 и инерцией
+  geometry.py     сферическая геометрия, k-means на сфере, вращения
+  markov.py       марковская модель глубины, committor, обогащённые пути
+  info.py         дискретная теория информации, CMI, синергия, перестановочные нули, BH
+  stats.py        пробы, DeLong, отношение правдоподобия, бутстрэп, стратифицированный AUROC
+  sst.py          разделимость по Фишеру, FisherS-размерность, few-shot детектор
+  hypotheses.py   турнир: H0, H1, H1b, H2, H3a, H3b, H4, H5, H7; пороги; вердикты
+  report.py       REPORT.md, рисунки, универсальность (H6)
+  synthetic.py    синтетические прогоны с заложенным и отсутствующим эффектом
+  preflight.py    самопроверка на GPU
+  sprint.py       оркестратор ночного спринта: изоляция сбоев, продолжение, уведомления, архив
+  progress.py     progress.json каждой стадии и logs/status.json спринта
+  monitor.py      монитор в терминале (configs/monitor.json)
+  notify.py       сообщения в Telegram (по желанию)
+  epgs.py         сравнение с EPGS (Liew и соавторы, 2026), дополнительный анализ вне вердиктов
+  audit.py        лист аудита разметки results/audit.md
+tests/            юнит-тесты, калибровка на синтетике, размер и мощность статистики, разметка ответов,
+                  сверка кода с HYPOTHESES.md, проверка GPU-пути на крошечной модели (CPU)
+configs/          три модели + базовая Qwen 7B как контроль; monitor.json для монитора
+scripts/          setup_server.sh, run_sprint.sh
+```
+
+## Тесты
+
+`python -m pytest -q tests/` (84 теста, около 7 минут на CPU, `setup_server.sh` запускает их сам). Стиль и мёртвый код: `pip install -r requirements-dev.txt`, затем `ruff check sgta tests` и `vulture sgta`; настройки в `ruff.toml`. Что ловят тесты:
+
+- **Калибровка на синтетике** (`test_calibration.py`): заложенные эффекты находятся, на пустых данных и на данных с перекосом отбора ничего не выживает, на двух разных seed.
+- **Статистика** (`test_stats_calibration.py`): критерий H1 не проходит на шуме, на функциях базы и на нелинейной функции уверенности; проходит, когда в блоке есть новая информация. DeLong и LR держат уровень значимости.
+- **Разметка** (`test_labels.py`): дефисы, диакритика, апострофы, инициалы и разделители тысяч не превращают верный ответ в ошибку; правило классов FA, FAc, CW, UW; деление на train и test; выборка для толчков.
+- **Протокол** (`test_protocol.py`): SHA-256 файла HYPOTHESES.md совпадает с `HYPOTHESES.sha256`; каждое число из `THRESHOLDS` встречается в разделе своей гипотезы (проверяются числа, не формулировки); все конфиги разделяют данные и определение классов; разбиения и стекинг не видят test.
+- **GPU-путь** (`test_model_path.py`): весь конвейер на крошечной модели, включая EPGS и лист аудита; хук вращения на GPU даёт ровно то же, что проверенная формула на numpy.
+
+Если правишь HYPOTHESES.md, тест протокола упадёт. Так и задумано: запиши изменение в журнал версий, обнови `HYPOTHESES.sha256` (`sha256sum HYPOTHESES.md > HYPOTHESES.sha256`) и отправь новый хэш руководителю.
+
+## Формат данных
+
+Каждый прогон хранится в `runs/<модель>/`. Состояния: `states.npy`, float16, форма [N, L+1, D], позиция последнего токена промпта, индекс 0 соответствует эмбеддингам, индекс l соответствует выходу блока l−1 до финальной нормализации. Разбиения и статистики обучаются только на train-части (40% примеров уходят в test по хэшу id). Вся аналитика после извлечения работает на CPU, поэтому анализ можно повторять сколько угодно раз после выключения сервера: достаточно скачать папку `runs/`.
+
+Объём на диске: около 0.7 GB для Qwen 1.5B, 1.6 GB для каждой Qwen 7B, 2.0 GB для OLMo-2 7B, всего около 6 GB. Скачайте `runs/` целиком до того, как отдадите сервер: без состояний анализ нельзя пересчитать. Версии модели, датасетов и библиотек записаны в `info.json` (`provenance`) и `env.txt` каждого прогона.

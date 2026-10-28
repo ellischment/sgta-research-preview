@@ -1,0 +1,10 @@
+{
+  "_comment": "Same architecture as the main model without instruction tuning. Instruct tuning is reported to suppress sensitivity to perturbations (Phenomenology of Hallucinations, 2026); if basins are floored on the instruct model, this run tells whether tuning is the reason. Optional: runs last.",
+  "model": "Qwen/Qwen2.5-7B",
+  "run_dir": "runs/qwen2.5-7b-base",
+  "dtype": "bfloat16",
+  "data": {"datasets": {"triviaqa": 3000, "popqa": 3000, "nq_open": 1500}, "prompt_style": "qa"},
+  "gen": {"batch_size": 32, "n_samples": 5},
+  "fit": {"ks": [8, 16, 32, 64]},
+  "perturb": {"n_examples": 3000, "batch_size": 66, "grad_batch_size": 16, "n_intervene": 800, "intervene_k": 16}
+}
