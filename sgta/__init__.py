@@ -18,4 +18,4 @@ Layout of a run directory (one per model):
         results/         hypothesis verdicts, metrics, figures, REPORT.md
 """
 
-__version__ = "0.6.7"
+__version__ = "0.7.0"

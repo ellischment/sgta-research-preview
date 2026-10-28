@@ -7,7 +7,7 @@ nvidia-smi | head -15
 python -c "import torch; print('torch', torch.__version__, '| cuda', torch.cuda.is_available(), torch.cuda.get_device_name(0), '| bf16 in hardware:', torch.cuda.is_bf16_supported())"
 TORCH_V=$(python -c "import torch; print(torch.__version__)")
 echo "torch==${TORCH_V}" > .torch-constraint.txt
-pip install -q -r requirements.txt -c .torch-constraint.txt
+pip install -q -e ".[gpu,dev]" -c .torch-constraint.txt
 python - <<'PY'
 from huggingface_hub import snapshot_download
 for m in ["Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-1.5B-Instruct"]:

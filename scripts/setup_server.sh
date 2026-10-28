@@ -21,7 +21,7 @@ fi
 # pin the torch that works with this driver, so no requirement can silently replace it with another CUDA build
 TORCH_V=$(python -c "import torch; print(torch.__version__)")
 echo "torch==${TORCH_V}" > .torch-constraint.txt
-pip install -q -r requirements.txt -c .torch-constraint.txt
+pip install -q -e ".[gpu,dev]" -c .torch-constraint.txt
 python -c "import torch, transformers; print('torch', torch.__version__, '| cuda', torch.cuda.is_available(), torch.cuda.get_device_name(0), '| transformers', transformers.__version__)"
 python -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)" || { echo "CUDA is not available in torch: stop here"; exit 1; }
 

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sgta-lab"
+version = "0.7.0"
+description = "Pre-registered study: does hidden-state stability expose confident LLM errors that geometry cannot see?"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Vasilisa Popova"}]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+    "pandas>=2.1",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+# GPU stages. torch is installed separately to match the CUDA driver (scripts/setup_server.sh).
+gpu = ["torch>=2.2", "transformers>=4.48,<6", "accelerate>=0.33", "datasets>=2.20"]
+dev = ["pytest>=8", "ruff>=0.5", "vulture>=2.11"]
+
+[project.scripts]
+sgta = "sgta.cli:main"
+
+[tool.setuptools]
+packages = ["sgta"]
+
+[tool.pytest.ini_options]
+markers = ["slow: end-to-end calibration on synthetic runs (about a minute each)"]
+filterwarnings = ["ignore::FutureWarning", "ignore::UserWarning", "ignore::RuntimeWarning"]
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["old"]
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "B", "UP", "SIM", "C4"]
+# `l` is the layer index throughout; E731 lambdas are the model factories the probes take
+ignore = ["E741", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
