@@ -4,6 +4,24 @@
 
 Pre-registered study of whether the *stability* of an LLM's hidden state tells a confident error from a confident correct answer, in the regime where hidden-state *geometry* cannot (Cheang et al., Findings ACL 2026). Protocol with thresholds and kill rules is frozen in [HYPOTHESES.md](HYPOTHESES.md) before any real data, hash pinned in `HYPOTHESES.sha256`. Code, tests and run scripts are here; no results on real data yet. The May 2026 prototype lives in [old/](old/). The rest is in Russian.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/sgta-pipeline-dark.svg">
+  <img src="docs/img/sgta-pipeline-light.svg" width="100%" alt="SGTA pipeline: extract answers, samples and hidden states on GPU; fit spherical cells on train data only; perturb the state by rotation and see whether the decision flips; apply the frozen protocol to get a verdict per hypothesis.">
+</picture>
+
+## At a glance
+
+| | |
+|---|---|
+| **Question** | Does the *stability* of an LLM's hidden state tell a confident error from a confident correct answer, where hidden-state geometry cannot? |
+| **Why it matters** | Confident errors escape confidence, sample consistency and, per Cheang et al., hidden-state position. |
+| **How it works** | Rotate the last prompt token's state at six depths with its norm kept, and see whether the next-token decision flips; also the smallest angle along the margin gradient that flips it. Confident errors are compared only with correct answers of the same sample consistency, over a baseline of confidence, consistency, linear probes, a logit-lens score and the output margin. |
+| **Implemented** | All four stages, a synthetic tournament, an unattended run orchestrator, 84 tests and CI. |
+| **Evidence** | Tests on synthetic data with planted, absent and skewed effects; size and power simulations; CI fails if the protocol changes without its hash. **No results on real data yet.** |
+| **Reproduce** | `pip install -e ".[dev]"`, then `sgta synthetic --mode planted --out runs/syn && sgta analyze --run runs/syn` (no GPU and no torch needed; about two minutes on a laptop). |
+| **Uncertain** | The code has not run on a real model yet; the first step is a GPU self-check. The main hypotheses may well be killed, and the protocol says what happens then. |
+
+
 ---
 
 Языковая модель иногда отвечает неверно и при этом уверенно: тот же ответ повторяется от сэмпла к сэмплу, вероятность высокая. Такие ошибки хуже обычных, потому что их не ловит ни уверенность модели, ни согласованность ответов, а в 2026 году показали, что и положение скрытого состояния их почти не отличает от верных ответов. Я проверяю другую величину: не где находится состояние, а насколько прочно оно там сидит. Беру состояние последнего токена промпта на шести глубинах, слегка поворачиваю его, сохраняя норму, и смотрю, перевернулось ли решение о следующем токене. Отдельно считаю самый дешёвый поворот: вдоль градиента маржина, минимальный угол, при котором ответ меняется. Если у уверенных ошибок этот угол систематически другой, чем у таких же уверенных верных ответов, устойчивость несёт информацию, которой нет у геометрии.
