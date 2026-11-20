@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software or protocol, please cite it as below."
+title: "SGTA: a pre-registered study of hidden-state stability and confident LLM errors"
+type: software
+version: 0.7.0
+license: MIT
+repository-code: "https://github.com/ellischment/sgta"
+url: "https://ellischment.ru"
+authors:
+  - family-names: Popova
+    given-names: Vasilisa
+    affiliation: "Central University"
+abstract: >-
+  Pre-registered study of whether the stability of an LLM's hidden state
+  separates a confident error from a confident correct answer, in the regime
+  where hidden-state geometry cannot. The protocol, thresholds and kill rules
+  are frozen before data and checked by hash in CI. No results on real data yet.
+keywords:
+  - large language models
+  - uncertainty quantification
+  - confident errors
+  - pre-registration

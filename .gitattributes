@@ -1,0 +1,3 @@
+# The pre-registered protocol and its hash must be byte-identical on every platform.
+HYPOTHESES.md text eol=lf
+HYPOTHESES.sha256 text eol=lf
