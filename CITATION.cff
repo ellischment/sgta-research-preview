@@ -4,7 +4,7 @@ title: "SGTA: a pre-registered study of hidden-state stability and confident LLM
 type: software
 version: 0.7.0
 license: MIT
-repository-code: "https://github.com/ellischment/sgta-research-preview"
+repository-code: "https://github.com/ellischment/sgta"
 url: "https://ellischment.ru"
 authors:
   - family-names: Popova
