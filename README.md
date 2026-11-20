@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/ellischment/sgta-research-preview/actions/workflows/ci.yml/badge.svg)](https://github.com/ellischment/sgta-research-preview/actions/workflows/ci.yml)
 
-Pre-registered study of whether the *stability* of an LLM's hidden state tells a confident error from a confident correct answer, in the regime where hidden-state *geometry* cannot (Cheang et al., Findings ACL 2026). Protocol with thresholds and kill rules is frozen in [HYPOTHESES.md](HYPOTHESES.md) before any real data, hash pinned in `HYPOTHESES.sha256`. Code, tests and run scripts are here; first real runs in November 2026. The May 2026 prototype lives in [old/](old/). The rest is in Russian.
+Pre-registered study of whether the *stability* of an LLM's hidden state tells a confident error from a confident correct answer, in the regime where hidden-state *geometry* cannot (Cheang et al., Findings ACL 2026). Protocol with thresholds and kill rules is frozen in [HYPOTHESES.md](HYPOTHESES.md) before any real data, hash pinned in `HYPOTHESES.sha256`. Code, tests and run scripts are here; no results on real data yet. The May 2026 prototype lives in [old/](old/). The rest is in Russian.
 
 ---
 

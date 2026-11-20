@@ -20,7 +20,7 @@ from sgta.hypotheses import _stack_score
 from sgta.report import MIN_N_FOR_KILL, STRICT_P_DELONG, STRICT_P_LR
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL = (ROOT / "HYPOTHESES.md").read_text()
+PROTOCOL = (ROOT / "HYPOTHESES.md").read_text(encoding="utf-8")
 
 
 def _section(hid: str) -> str:
@@ -33,7 +33,7 @@ def _section(hid: str) -> str:
 
 
 def test_protocol_hash_is_the_one_that_was_sent():
-    want = (ROOT / "HYPOTHESES.sha256").read_text().split()[0]
+    want = (ROOT / "HYPOTHESES.sha256").read_text(encoding="utf-8").split()[0]
     got = hashlib.sha256((ROOT / "HYPOTHESES.md").read_bytes()).hexdigest()
     assert got == want, (
         "HYPOTHESES.md changed after its hash was fixed. If the change is intended, record it in "
@@ -175,7 +175,7 @@ def test_audit_sheet_has_twenty_rows_per_class(tmp_path):
     d = tmp_path / "syn"
     make_run(str(d), mode="planted", N=600, seed=1)
     out = audit_sheet(str(d))
-    text = out.read_text()
+    text = out.read_text(encoding="utf-8")
     for cls in ("CW", "FA", "UW"):
         block = text.split(f"## {cls}:")[1].split("## ")[0]
         assert sum(1 for line in block.splitlines() if re.match(r"^\| \d+ \|", line)) == 20, cls
